@@ -21,6 +21,17 @@ Opções do `run.sh`:
 - `--gui` abre o debugger gráfico
 - `--rebuild-testcase` refaz o hardware (após alterar `testcase.yaml`)
 
+## Analisar uma rodada
+
+Na máquina local:
+
+```sh
+rsync -av paxos:/sim/guilherme.frick/matrix_multi/testcase/scenario/ runs/teste1/
+python3 scripts/analyze.py runs/teste1
+```
+
+Abre `runs/teste1/relatorio/relatorio.md`.
+
 ## Atualizar o código
 
 ```sh
