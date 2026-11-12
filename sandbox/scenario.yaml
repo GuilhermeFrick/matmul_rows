@@ -2,4 +2,4 @@ management:
   - task: mapper_task
     static_mapping: [0,0]
 apps:
-  - name: matrix_multi
+  - name: matmul_rows

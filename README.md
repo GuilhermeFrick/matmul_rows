@@ -1,4 +1,4 @@
-# matrix_multi — Multiplicação de matrizes na Memphis-V
+# matmul_rows — Multiplicação de matrizes na Memphis-V
 
 Todos os comandos rodam na paxos.
 
@@ -6,30 +6,30 @@ Todos os comandos rodam na paxos.
 
 ```sh
 cd ~/Memphis-V/applications
-git clone https://github.com/GuilhermeFrick/matrix_multi_manycore_memphins-v.git matrix_multi
-mkdir -p /sim/$USER/matrix_multi
-cp ~/Memphis-V/applications/matrix_multi/sandbox/*.yaml /sim/$USER/matrix_multi/
+git clone https://github.com/GuilhermeFrick/matmul_rows.git matmul_rows
+mkdir -p /sim/$USER/matmul_rows
+cp ~/Memphis-V/applications/matmul_rows/sandbox/*.yaml /sim/$USER/matmul_rows/
 ```
 
 ## Atualizar o código
 
 ```sh
-cd ~/Memphis-V/applications/matrix_multi
+cd ~/Memphis-V/applications/matmul_rows
 git checkout . && git pull   # descarta arquivos do gerador
 ```
 
 ## Gerar uma configuração
 
 ```sh
-cd ~/Memphis-V/applications/matrix_multi/generator
+cd ~/Memphis-V/applications/matmul_rows/generator
 python3 generator.py --tasks 4 --vector-size 6 --order-by asc
 ```
 
 ## Simular
 
 ```sh
-cd /sim/$USER/matrix_multi
-~/Memphis-V/applications/matrix_multi/scripts/run.sh
+cd /sim/$USER/matmul_rows
+~/Memphis-V/applications/matmul_rows/scripts/run.sh
 ```
 
 - `--rebuild-testcase` após alterar `testcase.yaml`
@@ -44,7 +44,7 @@ grep -h '\$\$\$_' testcase/scenario/log/*.txt
 ## Debugger
 
 ```sh
-source ~/Memphis-V/applications/matrix_multi/scripts/memphis_env.sh
+source ~/Memphis-V/applications/matmul_rows/scripts/memphis_env.sh
 mint debug testcase/scenario
 ```
 
@@ -55,7 +55,7 @@ mint debug testcase/scenario
 ## Resumo de tempos
 
 ```sh
-python3 ~/Memphis-V/applications/matrix_multi/scripts/analyze.py testcase/scenario
+python3 ~/Memphis-V/applications/matmul_rows/scripts/analyze.py testcase/scenario
 ```
 
 Gera `testcase/scenario/resumo.json`.

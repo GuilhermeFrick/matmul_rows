@@ -1,2 +1,2 @@
 apps:
-  - name: matrix_multi
+  - name: matmul_rows
