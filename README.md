@@ -6,7 +6,7 @@
 cd ~/Memphis-V/applications
 git clone https://github.com/GuilhermeFrick/matrix_multi_manycore_memphins-v.git matrix_multi
 mkdir -p /sim/$USER/matrix_multi
-cp matrix_multi/sandbox/*.yaml /sim/$USER/matrix_multi/
+cp ~/Memphis-V/applications/matrix_multi/sandbox/*.yaml /sim/$USER/matrix_multi/
 ```
 
 ## Executar
