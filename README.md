@@ -1,6 +1,8 @@
 # matrix_multi — Multiplicação de matrizes na Memphis-V
 
-## Instalar na paxos (uma vez)
+Todos os comandos rodam na paxos.
+
+## Instalar (uma vez)
 
 ```sh
 cd ~/Memphis-V/applications
@@ -9,38 +11,51 @@ mkdir -p /sim/$USER/matrix_multi
 cp ~/Memphis-V/applications/matrix_multi/sandbox/*.yaml /sim/$USER/matrix_multi/
 ```
 
-## Executar
+## Atualizar o código
+
+```sh
+cd ~/Memphis-V/applications/matrix_multi
+git checkout . && git pull   # descarta arquivos do gerador
+```
+
+## Gerar uma configuração
+
+```sh
+cd ~/Memphis-V/applications/matrix_multi/generator
+python3 generator.py --tasks 4 --vector-size 6 --order-by asc
+```
+
+## Simular
 
 ```sh
 cd /sim/$USER/matrix_multi
 ~/Memphis-V/applications/matrix_multi/scripts/run.sh
 ```
 
-Opções do `run.sh`:
+- `--rebuild-testcase` após alterar `testcase.yaml`
+- `--gui` abre o debugger ao final
 
-- `--gui` abre o debugger gráfico
-- `--rebuild-testcase` refaz o hardware (após alterar `testcase.yaml`)
-
-## Analisar uma rodada
-
-Na máquina local:
+## Ver a saída das tarefas
 
 ```sh
-rsync -av paxos:/sim/guilherme.frick/matrix_multi/testcase/scenario/ runs/teste1/
-python3 scripts/analyze.py runs/teste1
+grep -h '\$\$\$_' testcase/scenario/log/*.txt
 ```
 
-Abre `runs/teste1/relatorio/relatorio.md`.
-
-## Atualizar o código
+## Debugger
 
 ```sh
-cd ~/Memphis-V/applications/matrix_multi && git pull
+source ~/Memphis-V/applications/matrix_multi/scripts/memphis_env.sh
+mint debug testcase/scenario
 ```
 
-## Gerar outra configuração
+- Escalonamento: clicar no PE → Scheduling → Open Scheduling Graph
+- Tráfego: Tools → Communication Overview
+- Mapeamento: Tools → Task Mapping Overview
+
+## Resumo de tempos
 
 ```sh
-cd generator
-python3 generator.py --tasks 4 --vector-size 6 --order-by asc
+python3 ~/Memphis-V/applications/matrix_multi/scripts/analyze.py testcase/scenario
 ```
+
+Gera `testcase/scenario/resumo.json`.
