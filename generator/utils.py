@@ -21,10 +21,12 @@ def write_h(matrix_size, tasks, order_by):
     h = f"""#ifndef MATRIX_MULT_STD_H_
 #define MATRIX_MULT_STD_H_
 
+#include <stdint.h>
+
 #define NUMBER_OF_TASKS {tasks}
 #define MATRIX_SIZE {matrix_size}
 
-int matrix_a[{matrix_size}][{matrix_size}] = {{
+int32_t matrix_a[{matrix_size}][{matrix_size}] = {{
 """
 
     def make_matrix():
@@ -45,7 +47,7 @@ int matrix_a[{matrix_size}][{matrix_size}] = {{
 
     append_matrix(make_matrix())
     h += "};\n\n"
-    h += f"int matrix_b[{matrix_size}][{matrix_size}] = {{\n"
+    h += f"int32_t matrix_b[{matrix_size}][{matrix_size}] = {{\n"
     append_matrix(make_matrix())
     h += """};
 
@@ -57,6 +59,7 @@ def write_master(tasks):
     return f"""#include <memphis.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <inttypes.h>
 #include "matrix_mult.h"
 
 int main()
@@ -64,14 +67,14 @@ int main()
     const int workers = NUMBER_OF_TASKS - 1;
     const int rows_per_worker = MATRIX_SIZE / workers;
     const int result_elements = MATRIX_SIZE * MATRIX_SIZE;
-    int *result = (int*)malloc(result_elements * sizeof(int));
+    int32_t *result = (int32_t*)malloc(result_elements * sizeof(int32_t));
 
     printf("Fatiando e enviando a matriz A...\\n");
 
     for (int worker = 1; worker < NUMBER_OF_TASKS; worker++) {{
         int row_start = (worker - 1) * rows_per_worker;
         memphis_send(&matrix_a[row_start][0],
-                     rows_per_worker * MATRIX_SIZE * sizeof(int), worker);
+                     rows_per_worker * MATRIX_SIZE * sizeof(int32_t), worker);
         memphis_send(matrix_b, sizeof(matrix_b), worker);
     }}
 
@@ -80,13 +83,13 @@ int main()
     for (int worker = 1; worker < NUMBER_OF_TASKS; worker++) {{
         int row_start = (worker - 1) * rows_per_worker;
         memphis_receive(&result[row_start * MATRIX_SIZE],
-                        rows_per_worker * MATRIX_SIZE * sizeof(int), worker);
+                        rows_per_worker * MATRIX_SIZE * sizeof(int32_t), worker);
     }}
 
     printf("Matriz resultante:\\n");
     for (int i = 0; i < MATRIX_SIZE; i++) {{
         for (int j = 0; j < MATRIX_SIZE; j++)
-            printf("%d%c", result[i * MATRIX_SIZE + j],
+            printf("%" PRId32 "%c", result[i * MATRIX_SIZE + j],
                    j == MATRIX_SIZE - 1 ? '\\n' : ' ');
     }}
 
@@ -106,19 +109,19 @@ int main()
 {
     const int rows_per_worker = MATRIX_SIZE / (NUMBER_OF_TASKS - 1);
     const int chunk_elements = rows_per_worker * MATRIX_SIZE;
-    int *matrix_a_chunk = (int*)malloc(chunk_elements * sizeof(int));
-    int (*matrix_b_received)[MATRIX_SIZE] =
-        (int (*)[MATRIX_SIZE])malloc(sizeof(matrix_b));
-    int *result = (int*)malloc(chunk_elements * sizeof(int));
+    int32_t *matrix_a_chunk = (int32_t*)malloc(chunk_elements * sizeof(int32_t));
+    int32_t (*matrix_b_received)[MATRIX_SIZE] =
+        (int32_t (*)[MATRIX_SIZE])malloc(sizeof(matrix_b));
+    int32_t *result = (int32_t*)malloc(chunk_elements * sizeof(int32_t));
 
     printf("Worker%d\\n", getpid()-255-1);
 
-    memphis_receive(matrix_a_chunk, chunk_elements * sizeof(int), master);
+    memphis_receive(matrix_a_chunk, chunk_elements * sizeof(int32_t), master);
     memphis_receive(matrix_b_received, sizeof(matrix_b), master);
 
     for (int i = 0; i < rows_per_worker; i++) {
         for (int j = 0; j < MATRIX_SIZE; j++) {
-            int value = 0;
+            int32_t value = 0;
             for (int k = 0; k < MATRIX_SIZE; k++)
                 value += matrix_a_chunk[i * MATRIX_SIZE + k] *
                          matrix_b_received[k][j];
@@ -126,7 +129,7 @@ int main()
         }
     }
 
-    memphis_send(result, chunk_elements * sizeof(int), master);
+    memphis_send(result, chunk_elements * sizeof(int32_t), master);
     printf("Enviou\\n");
 
     free(matrix_a_chunk);

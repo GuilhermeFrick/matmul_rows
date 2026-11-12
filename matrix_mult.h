@@ -1,10 +1,12 @@
 #ifndef MATRIX_MULT_STD_H_
 #define MATRIX_MULT_STD_H_
 
+#include <stdint.h>
+
 #define NUMBER_OF_TASKS 4
 #define MATRIX_SIZE 6
 
-int matrix_a[6][6] = {
+int32_t matrix_a[6][6] = {
     {0, 1, 2, 3, 4, 5},
     {6, 7, 8, 9, 10, 11},
     {12, 13, 14, 15, 16, 17},
@@ -13,7 +15,7 @@ int matrix_a[6][6] = {
     {30, 31, 32, 33, 34, 35},
 };
 
-int matrix_b[6][6] = {
+int32_t matrix_b[6][6] = {
     {0, 1, 2, 3, 4, 5},
     {6, 7, 8, 9, 10, 11},
     {12, 13, 14, 15, 16, 17},
