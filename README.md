@@ -1,19 +1,19 @@
-# matmul_rows — Multiplicação de matrizes na Memphis-V
+# matrix_multi — Multiplicação de matrizes na Memphis-V
 
 ## Instalar na paxos (uma vez)
 
 ```sh
 cd ~/Memphis-V/applications
-git clone https://github.com/GuilhermeFrick/matrix_multi_manycore_memphins-v.git matmul_rows
-mkdir -p /sim/$USER/matmul
-cp matmul_rows/sandbox/*.yaml /sim/$USER/matmul/
+git clone https://github.com/GuilhermeFrick/matrix_multi_manycore_memphins-v.git matrix_multi
+mkdir -p /sim/$USER/matrix_multi
+cp matrix_multi/sandbox/*.yaml /sim/$USER/matrix_multi/
 ```
 
 ## Executar
 
 ```sh
-cd /sim/$USER/matmul
-~/Memphis-V/applications/matmul_rows/scripts/run.sh
+cd /sim/$USER/matrix_multi
+~/Memphis-V/applications/matrix_multi/scripts/run.sh
 ```
 
 Opções do `run.sh`:
@@ -24,7 +24,7 @@ Opções do `run.sh`:
 ## Atualizar o código
 
 ```sh
-cd ~/Memphis-V/applications/matmul_rows && git pull
+cd ~/Memphis-V/applications/matrix_multi && git pull
 ```
 
 ## Gerar outra configuração
