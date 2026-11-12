@@ -1,0 +1,15 @@
+simulation:
+  simulator: verilator
+  trace: no
+hw:
+  page_size_inst_KB: 64
+  page_size_data_KB: 64
+  tasks_per_PE: 2
+  mpsoc_dimension: [3,3]
+  Peripherals:
+    - name: MA_INJ
+      pe: 0,0
+      port: S
+    - name: APP_INJ
+      pe: 2,2
+      port: N
