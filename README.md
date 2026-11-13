@@ -35,6 +35,22 @@ cd /sim/$USER/matmul_rows
 - `--rebuild-testcase` após alterar `testcase.yaml`
 - `--gui` abre o debugger ao final
 
+## Experimentos (malha 5x5, 1 tarefa por PE)
+
+```sh
+mkdir -p /sim/$USER/matmul_exp && cd /sim/$USER/matmul_exp
+APP=~/Memphis-V/applications/matmul_rows
+cp $APP/experiments/testcase.yaml $APP/experiments/applications.yaml .
+N=32
+for W in 1 2 4 8 16; do
+  python3 $APP/generator/generator.py --workers $W --size $N --page-kb 1024
+  cp $APP/experiments/scenario_w$W.yaml scenario.yaml
+  $APP/scripts/run.sh
+  rm -rf res_N${N}_W$W && cp -r testcase/scenario res_N${N}_W$W
+done
+grep -H 'TICKS\|RESULT\|ERRO' res_N*/log/*.txt
+```
+
 ## Ver a saída das tarefas
 
 ```sh
