@@ -2,6 +2,14 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdio.h>
+
+/* Mensagens de debug: só com --debug no gerador */
+#ifdef MATMUL_DEBUG
+#define DBG(...) printf(__VA_ARGS__)
+#else
+#define DBG(...) ((void)0)
+#endif
 
 #define MATMUL_N 6
 #define MATMUL_W 3

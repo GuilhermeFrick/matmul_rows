@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Gerador da aplicação matmul_rows (C = A x B, decomposição por linhas).
 
-Uso: python3 generator.py --workers W --size N [--seed S] [--page-kb KB]
+Uso: python3 generator.py --workers W --size N [--seed S] [--debug] [--page-kb KB]
 
 Gera na pasta da aplicação: config.yaml, data.h, master.c e worker0.c..workerW-1.c.
 """
@@ -28,11 +28,21 @@ def c_matrix(name, m):
     return f"static const int32_t {name}[MATMUL_N][MATMUL_N] = {{\n{rows}\n}};\n"
 
 
-def write_data_h(n, w, seed, a, b, c):
-    return f"""/* Gerado por generator/generator.py --workers {w} --size {n} --seed {seed} */
+def write_data_h(n, w, seed, debug, a, b, c):
+    dbg_cmd = " --debug" if debug else ""
+    dbg_def = "#define MATMUL_DEBUG\n" if debug else ""
+    return f"""/* Gerado por generator/generator.py --workers {w} --size {n} --seed {seed}{dbg_cmd} */
 #pragma once
 
 #include <stdint.h>
+#include <stdio.h>
+
+/* Mensagens de debug: só com --debug no gerador */
+{dbg_def}#ifdef MATMUL_DEBUG
+#define DBG(...) printf(__VA_ARGS__)
+#else
+#define DBG(...) ((void)0)
+#endif
 
 #define MATMUL_N {n}
 #define MATMUL_W {w}
@@ -52,6 +62,7 @@ def write_master(w):
     return f"""#include <memphis.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <inttypes.h>
 
 #define MATMUL_MASTER
 #include "data.h"
@@ -62,6 +73,8 @@ static int32_t mat_c[MATMUL_N][MATMUL_N];
 int main()
 {{
     const size_t blk = sizeof(int32_t) * MATMUL_ROWS * MATMUL_N;
+
+    DBG("Fatiando e enviando a matriz A...\\n");
 
     unsigned t0 = memphis_get_tick();
 
@@ -74,6 +87,8 @@ int main()
     }}
 
     unsigned t1 = memphis_get_tick();
+
+    DBG("Recebendo resultados...\\n");
 
     for (int w = 0; w < MATMUL_W; w++) {{
         if (memphis_receive(mat_c[w * MATMUL_ROWS], blk, worker_ids[w]) != (int)blk) {{
@@ -93,6 +108,11 @@ int main()
     printf("TICKS send=%u recv=%u total=%u\\n", t1 - t0, t2 - t1, t2 - t0);
     printf("RESULT %s N=%d W=%d erros=%d\\n", errors ? "ERRO" : "OK", MATMUL_N, MATMUL_W, errors);
 
+    DBG("Matriz resultante:\\n");
+    for (int i = 0; i < MATMUL_N; i++)
+        for (int j = 0; j < MATMUL_N; j++)
+            DBG("%" PRId32 "%c", mat_c[i][j], j == MATMUL_N - 1 ? '\\n' : ' ');
+
     return errors ? 1 : 0;
 }}
 """
@@ -108,6 +128,7 @@ def main():
     ap.add_argument("--workers", type=int, required=True, help="número de workers (W)")
     ap.add_argument("--size", type=int, required=True, help="tamanho das matrizes (N)")
     ap.add_argument("--seed", type=int, default=1, help="semente das matrizes (padrão 1)")
+    ap.add_argument("--debug", action="store_true", help="liga as mensagens DBG (atrapalha a medição)")
     ap.add_argument("--page-kb", type=int, default=64, help="page_size_data_KB do testcase (só para aviso)")
     args = ap.parse_args()
     n, w = args.size, args.workers
@@ -132,7 +153,7 @@ def main():
         f.unlink(missing_ok=True)
 
     (APP_DIR / "config.yaml").write_text(write_config_yaml(w))
-    (APP_DIR / "data.h").write_text(write_data_h(n, w, args.seed, a, b, c))
+    (APP_DIR / "data.h").write_text(write_data_h(n, w, args.seed, args.debug, a, b, c))
     (APP_DIR / "master.c").write_text(write_master(w))
     for i in range(w):
         (APP_DIR / f"worker{i}.c").write_text('#include "worker_impl.h"\n')
@@ -141,7 +162,7 @@ def main():
     master_b = 4 * n * n * 4               # A, B, C esperado, C recebido
     worker_b = (2 * (n // w) * n + n * n) * 4  # bloco de A, B, bloco de C
     page = args.page_kb * 1024
-    print(f"N={n} W={w} seed={args.seed}: master ~{master_b} B, worker ~{worker_b} B (página {page} B)")
+    print(f"N={n} W={w} seed={args.seed} debug={args.debug}: master ~{master_b} B, worker ~{worker_b} B (página {page} B)")
     for name, size in (("master", master_b), ("worker", worker_b)):
         if size > page:
             print(f"AVISO: {name} não cabe em page_size_data_KB={args.page_kb}")

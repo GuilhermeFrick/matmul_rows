@@ -4,6 +4,7 @@
 #include <memphis.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <unistd.h>
 
 #include "data.h"
 
@@ -13,6 +14,8 @@ static int32_t c_blk[MATMUL_ROWS][MATMUL_N];
 
 int main()
 {
+    DBG("Worker id %d\n", getpid() & 0xFF);
+
     unsigned t0 = memphis_get_tick();
 
     if (memphis_receive(a_blk, sizeof(a_blk), master) != (int)sizeof(a_blk) ||
@@ -40,6 +43,8 @@ int main()
     }
 
     unsigned t3 = memphis_get_tick();
+
+    DBG("Enviou\n");
 
     printf("TICKS recv=%u comp=%u send=%u\n", t1 - t0, t2 - t1, t3 - t2);
 

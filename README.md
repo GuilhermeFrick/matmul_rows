@@ -22,7 +22,7 @@ git checkout . && git clean -f && git pull   # descarta arquivos do gerador
 
 ```sh
 cd ~/Memphis-V/applications/matmul_rows/generator
-python3 generator.py --workers 3 --size 6 [--seed 1]
+python3 generator.py --workers 3 --size 6 [--seed 1] [--debug]
 ```
 
 ## Simular
