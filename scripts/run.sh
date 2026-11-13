@@ -36,6 +36,10 @@ if [ "$REBUILD" -eq 1 ] || [ ! -d testcase ]; then
     mint testcase testcase.yaml
 fi
 
+# mint copia a pasta da app inteira; os objetos do .git copiados são
+# somente leitura e fazem a cópia seguinte falhar (Permission denied)
+rm -rf testcase/applications/*/.git
+
 echo "== mint applications"
 mint applications testcase applications.yaml
 
