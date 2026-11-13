@@ -15,14 +15,14 @@ cp ~/Memphis-V/applications/matmul_rows/sandbox/*.yaml /sim/$USER/matmul_rows/
 
 ```sh
 cd ~/Memphis-V/applications/matmul_rows
-git checkout . && git pull   # descarta arquivos do gerador
+git checkout . && git clean -f && git pull   # descarta arquivos do gerador
 ```
 
 ## Gerar uma configuração
 
 ```sh
 cd ~/Memphis-V/applications/matmul_rows/generator
-python3 generator.py --tasks 4 --vector-size 6 --order-by asc
+python3 generator.py --workers 3 --size 6 [--seed 1]
 ```
 
 ## Simular

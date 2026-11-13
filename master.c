@@ -1,40 +1,46 @@
 #include <memphis.h>
-#include <stdlib.h>
 #include <stdio.h>
-#include <inttypes.h>
-#include "matrix_mult.h"
+#include <stdint.h>
+
+#define MATMUL_MASTER
+#include "data.h"
+
+static const int worker_ids[MATMUL_W] = {worker0, worker1, worker2};
+static int32_t mat_c[MATMUL_N][MATMUL_N];
 
 int main()
 {
-    const int workers = NUMBER_OF_TASKS - 1;
-    const int rows_per_worker = MATRIX_SIZE / workers;
-    const int result_elements = MATRIX_SIZE * MATRIX_SIZE;
-    int32_t *result = (int32_t*)malloc(result_elements * sizeof(int32_t));
+    const size_t blk = sizeof(int32_t) * MATMUL_ROWS * MATMUL_N;
 
-    printf("Fatiando e enviando a matriz A...\n");
+    unsigned t0 = memphis_get_tick();
 
-    for (int worker = 1; worker < NUMBER_OF_TASKS; worker++) {
-        int row_start = (worker - 1) * rows_per_worker;
-        memphis_send(&matrix_a[row_start][0],
-                     rows_per_worker * MATRIX_SIZE * sizeof(int32_t), worker);
-        memphis_send(matrix_b, sizeof(matrix_b), worker);
+    for (int w = 0; w < MATMUL_W; w++) {
+        if (memphis_send((void *)mat_a[w * MATMUL_ROWS], blk, worker_ids[w]) < 0 ||
+            memphis_send((void *)mat_b, sizeof(mat_b), worker_ids[w]) < 0) {
+            printf("ERRO: send para worker%d\n", w);
+            return 1;
+        }
     }
 
-    printf("Recebendo resultados...\n");
+    unsigned t1 = memphis_get_tick();
 
-    for (int worker = 1; worker < NUMBER_OF_TASKS; worker++) {
-        int row_start = (worker - 1) * rows_per_worker;
-        memphis_receive(&result[row_start * MATRIX_SIZE],
-                        rows_per_worker * MATRIX_SIZE * sizeof(int32_t), worker);
+    for (int w = 0; w < MATMUL_W; w++) {
+        if (memphis_receive(mat_c[w * MATMUL_ROWS], blk, worker_ids[w]) != (int)blk) {
+            printf("ERRO: receive de worker%d\n", w);
+            return 1;
+        }
     }
 
-    printf("Matriz resultante:\n");
-    for (int i = 0; i < MATRIX_SIZE; i++) {
-        for (int j = 0; j < MATRIX_SIZE; j++)
-            printf("%" PRId32 "%c", result[i * MATRIX_SIZE + j],
-                   j == MATRIX_SIZE - 1 ? '\n' : ' ');
-    }
+    unsigned t2 = memphis_get_tick();
 
-    free(result);
-    return 0;
+    int errors = 0;
+    for (int i = 0; i < MATMUL_N; i++)
+        for (int j = 0; j < MATMUL_N; j++)
+            if (mat_c[i][j] != mat_c_ref[i][j])
+                errors++;
+
+    printf("TICKS send=%u recv=%u total=%u\n", t1 - t0, t2 - t1, t2 - t0);
+    printf("RESULT %s N=%d W=%d erros=%d\n", errors ? "ERRO" : "OK", MATMUL_N, MATMUL_W, errors);
+
+    return errors ? 1 : 0;
 }
