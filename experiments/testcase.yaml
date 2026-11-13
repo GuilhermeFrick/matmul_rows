@@ -2,7 +2,7 @@ simulation:
   simulator: verilator
   trace: no
 hw:
-  page_size_inst_KB: 64
+  page_size_inst_KB: 1024
   page_size_data_KB: 1024
   tasks_per_PE: 1
   mpsoc_dimension: [5,5]
