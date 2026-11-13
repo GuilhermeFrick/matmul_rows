@@ -15,7 +15,7 @@ cp ~/Memphis-V/applications/matmul_rows/sandbox/*.yaml /sim/$USER/matmul_rows/
 
 ```sh
 cd ~/Memphis-V/applications/matmul_rows
-git checkout . && git clean -f && git pull   # descarta arquivos do gerador
+git checkout . && git clean -f && git pull
 ```
 
 ## Gerar uma configuração
@@ -49,6 +49,12 @@ for W in 1 2 4 8 16; do
   rm -rf res_N${N}_W$W && cp -r testcase/scenario res_N${N}_W$W
 done
 grep -H 'TICKS\|RESULT\|ERRO' res_N*/log/*.txt
+```
+
+Tabelas (CSV/Markdown) e gráficos SVG de tempo, speedup e eficiência em `resultados/`:
+
+```sh
+python3 $APP/scripts/resultados.py
 ```
 
 ## Ver a saída das tarefas
