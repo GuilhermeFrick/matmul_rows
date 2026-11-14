@@ -28,92 +28,145 @@ def c_matrix(name, m):
     return f"static const int32_t {name}[MATMUL_N][MATMUL_N] = {{\n{rows}\n}};\n"
 
 
-def write_data_h(n, w, seed, debug, a, b, c):
+def header(fname, brief, n, w, seed, debug):
     dbg_cmd = " --debug" if debug else ""
-    dbg_def = "#define MATMUL_DEBUG\n" if debug else ""
-    return f"""/* Gerado por generator/generator.py --workers {w} --size {n} --seed {seed}{dbg_cmd} */
-#pragma once
+    return f"""/**
+ * @file {fname}
+ * @author Lucas Cunha
+ * @author Guilherme Frick
+ * @brief {brief}
+ * @version 0.1
+ * @date 2026-11-14
+ *
+ * @details Gerado por generator/generator.py --workers {w} --size {n} --seed {seed}{dbg_cmd}
+ */"""
+
+
+def write_data_h(n, w, seed, debug, a, b, c):
+    return f"""{header("data.h", "Parâmetros da configuração, matrizes A e B e o resultado esperado (golden).", n, w, seed, debug)}
+#ifndef MATMUL_DATA_H
+#define MATMUL_DATA_H
 
 #include <stdint.h>
-#include <stdio.h>
 
-/* Mensagens de debug: só com --debug no gerador */
-{dbg_def}#ifdef MATMUL_DEBUG
-#define DBG(...) printf(__VA_ARGS__)
-#else
-#define DBG(...) ((void)0)
-#endif
+/** @brief Tamanho das matrizes (N x N). */
+static constexpr uint32_t MATMUL_N = {n};
 
-#define MATMUL_N {n}
-#define MATMUL_W {w}
-#define MATMUL_ROWS (MATMUL_N / MATMUL_W)
+/** @brief Número de workers (W). */
+static constexpr uint32_t MATMUL_W = {w};
 
-/* Matrizes só no master: os workers incluem este arquivo apenas para N e W */
-#ifdef MATMUL_MASTER
+/** @brief Linhas de C calculadas por worker (MATMUL_N / MATMUL_W). */
+static constexpr uint32_t MATMUL_ROWS = {n // w};
+
+/** @brief Liga as mensagens de matmul_dbg (--debug no gerador). */
+static constexpr bool MATMUL_DEBUG = {"true" if debug else "false"};
+
+/* Só o master usa as matrizes; nos workers o compilador (-Os) descarta as static const não usadas. */
+/* clang-format off */
+/** @brief Matriz A (entrada). */
 {c_matrix("mat_a", a)}
+/** @brief Matriz B (entrada). */
 {c_matrix("mat_b", b)}
-{c_matrix("mat_c_ref", c)}
-#endif
+/** @brief Resultado esperado C = A x B, calculado pelo gerador (golden). */
+{c_matrix("mat_c_ref", c)}/* clang-format on */
+
+#endif /* MATMUL_DATA_H */
 """
 
 
 def write_master(w):
-    ids = ", ".join(f"worker{i}" for i in range(w))
-    return f"""#include <memphis.h>
-#include <stdio.h>
+    ids = "".join(f"    worker{i},\n" for i in range(w))
+    return f"""/**
+ * @file master.c
+ * @author Lucas Cunha
+ * @author Guilherme Frick
+ * @brief Tarefa master: distribui A (por linhas) e B aos workers, junta C e compara com o golden.
+ * @version 0.1
+ * @date 2026-11-14
+ *
+ * @details Gerado por generator/generator.py (a lista worker_ids depende de --workers).
+ * Imprime os ticks de envio e recebimento e a linha "RESULT OK/ERRO".
+ */
+#include <memphis.h>
 #include <stdint.h>
-#include <inttypes.h>
+#include <stdlib.h>
 
-#define MATMUL_MASTER
-#include "data.h"
+#include "matmul.h"
 
-static const int worker_ids[MATMUL_W] = {{{ids}}};
-static int32_t mat_c[MATMUL_N][MATMUL_N];
+/** @brief IDs das tarefas worker, na ordem dos blocos de linhas. */
+/* clang-format off */
+static const int32_t worker_ids[] = {{
+{ids}}};
+/* clang-format on */
 
+/**
+ * @brief Tarefa master.
+ *
+ * @return Código matmul_status_t (MATMUL_OK se C bate com o golden).
+ */
 int main()
 {{
-    const size_t blk = sizeof(int32_t) * MATMUL_ROWS * MATMUL_N;
+    const size_t    blk = sizeof(int32_t) * MATMUL_ROWS * MATMUL_N;
+    matmul_status_t st  = MATMUL_OK;
 
-    DBG("Fatiando e enviando a matriz A...\\n");
+    int32_t(*mat_c)[MATMUL_N] = malloc(sizeof(int32_t) * MATMUL_N * MATMUL_N);
 
-    unsigned t0 = memphis_get_tick();
-
-    for (int w = 0; w < MATMUL_W; w++) {{
-        if (memphis_send((void *)mat_a[w * MATMUL_ROWS], blk, worker_ids[w]) < 0 ||
-            memphis_send((void *)mat_b, sizeof(mat_b), worker_ids[w]) < 0) {{
-            printf("ERRO: send para worker%d\\n", w);
-            return 1;
+    do
+    {{
+        if (mat_c == NULL)
+        {{
+            st = matmul_erro(MATMUL_ERR_ALLOC, "malloc de C no master", -1);
+            break;
         }}
-    }}
 
-    unsigned t1 = memphis_get_tick();
+        matmul_dbg("Fatiando e enviando a matriz A...\\n");
 
-    DBG("Recebendo resultados...\\n");
+        uint32_t t0 = memphis_get_tick();
 
-    for (int w = 0; w < MATMUL_W; w++) {{
-        if (memphis_receive(mat_c[w * MATMUL_ROWS], blk, worker_ids[w]) != (int)blk) {{
-            printf("ERRO: receive de worker%d\\n", w);
-            return 1;
+        for (uint32_t w = 0; w < MATMUL_W && st == MATMUL_OK; w++)
+        {{
+            if (memphis_send((void *)mat_a[w * MATMUL_ROWS], blk, worker_ids[w]) < 0 || memphis_send((void *)mat_b, sizeof(mat_b), worker_ids[w]) < 0)
+                st = matmul_erro(MATMUL_ERR_SEND, "send para", (int32_t)w);
         }}
-    }}
+        if (st != MATMUL_OK)
+            break;
 
-    unsigned t2 = memphis_get_tick();
+        uint32_t t1 = memphis_get_tick();
 
-    int errors = 0;
-    for (int i = 0; i < MATMUL_N; i++)
-        for (int j = 0; j < MATMUL_N; j++)
-            if (mat_c[i][j] != mat_c_ref[i][j])
-                errors++;
+        matmul_dbg("Recebendo resultados...\\n");
 
-    printf("TICKS send=%u recv=%u total=%u\\n", t1 - t0, t2 - t1, t2 - t0);
-    printf("RESULT %s N=%d W=%d erros=%d\\n", errors ? "ERRO" : "OK", MATMUL_N, MATMUL_W, errors);
+        for (uint32_t w = 0; w < MATMUL_W && st == MATMUL_OK; w++)
+        {{
+            if (memphis_receive(mat_c[w * MATMUL_ROWS], blk, worker_ids[w]) != (int32_t)blk)
+                st = matmul_erro(MATMUL_ERR_RECV, "receive de", (int32_t)w);
+        }}
+        if (st != MATMUL_OK)
+            break;
 
-    DBG("Matriz resultante:\\n");
-    for (int i = 0; i < MATMUL_N; i++)
-        for (int j = 0; j < MATMUL_N; j++)
-            DBG("%" PRId32 "%c", mat_c[i][j], j == MATMUL_N - 1 ? '\\n' : ' ');
+        uint32_t t2 = memphis_get_tick();
 
-    return errors ? 1 : 0;
+        uint32_t errors = 0;
+        for (uint32_t i = 0; i < MATMUL_N; i++)
+            for (uint32_t j = 0; j < MATMUL_N; j++)
+                if (mat_c[i][j] != mat_c_ref[i][j])
+                    errors++;
+
+        printf("TICKS send=%" PRIu32 " recv=%" PRIu32 " total=%" PRIu32 "\\n", t1 - t0, t2 - t1, t2 - t0);
+        printf("RESULT %s N=%" PRIu32 " W=%" PRIu32 " erros=%" PRIu32 "\\n", errors ? "ERRO" : "OK", MATMUL_N, MATMUL_W, errors);
+
+        if (MATMUL_DEBUG)
+        {{
+            printf("Matriz resultante:\\n");
+            for (uint32_t i = 0; i < MATMUL_N; i++)
+                for (uint32_t j = 0; j < MATMUL_N; j++) printf("%" PRId32 "%c", mat_c[i][j], j == MATMUL_N - 1 ? '\\n' : ' ');
+        }}
+
+        if (errors)
+            st = MATMUL_ERR_RESULT;
+    }} while (0);
+
+    free(mat_c);
+    return st;
 }}
 """
 
@@ -149,7 +202,7 @@ def main():
 
     # remove arquivos gerados antes (inclusive os do gerador antigo)
     for f in [*APP_DIR.glob("worker*.c"), *(APP_DIR / x for x in
-              ("master.c", "data.h", "config.yaml", "matrix_mult.h"))]:
+              ("master.c", "data.h", "params.h", "config.yaml", "matrix_mult.h"))]:
         f.unlink(missing_ok=True)
 
     (APP_DIR / "config.yaml").write_text(write_config_yaml(w))
