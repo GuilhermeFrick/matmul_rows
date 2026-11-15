@@ -1,6 +1,6 @@
 # matmul_rows — Multiplicação de matrizes na Memphis-V
 
-Todos os comandos rodam na paxos, exceto onde indicado "no seu computador".
+Todos os comandos rodam na paxos, exceto onde indicado "no seu computador". Passo a passo detalhado: [ROTEIRO.md](ROTEIRO.md).
 
 ## Instalar (uma vez)
 
@@ -57,16 +57,12 @@ Malha 5x5, 1 tarefa por PE, N ∈ {32, 64, 128}, W ∈ {1, 2, 4, 8, 16}. Leva ce
 
 1. Atualizar o código (seção acima).
 
-2. Preparar a pasta:
+2. Preparar a pasta e rodar a bateria em segundo plano, no mesmo bloco (continua se o SSH cair; o `pwd` deve mostrar `/sim/<usuário>/matmul_exp`):
 
 ```sh
 mkdir -p /sim/$USER/matmul_exp && cd /sim/$USER/matmul_exp
 cp ~/Memphis-V/applications/matmul_rows/experiments/testcase.yaml ~/Memphis-V/applications/matmul_rows/experiments/applications.yaml .
-```
-
-3. Rodar a bateria em segundo plano (continua se o SSH cair):
-
-```sh
+pwd
 nohup bash -c 'APP=~/Memphis-V/applications/matmul_rows
 for N in 32 64 128; do for W in 1 2 4 8 16; do
   python3 $APP/generator/generator.py --workers $W --size $N --page-kb 1024 &&
@@ -76,26 +72,26 @@ for N in 32 64 128; do for W in 1 2 4 8 16; do
 done; done' > bateria.log 2>&1 &
 ```
 
-4. Acompanhar (Ctrl+C só fecha a visualização):
+3. Acompanhar (Ctrl+C só fecha a visualização):
 
 ```sh
 tail -f bateria.log
 ls -d res_N*
 ```
 
-5. Conferir os 15 resultados:
+4. Conferir os 15 resultados:
 
 ```sh
 grep -h 'RESULT\|ERRO' res_N*/log/*.txt
 ```
 
-6. Tabelas (CSV/Markdown) e gráficos de tempo, speedup e eficiência em `resultados/`:
+5. Tabelas (CSV/Markdown) e gráficos de tempo, speedup e eficiência em `resultados/`:
 
 ```sh
 python3 ~/Memphis-V/applications/matmul_rows/scripts/resultados.py
 ```
 
-7. Debugger (seção abaixo) em `res_N128_W4` e `res_N128_W16`.
+6. Debugger (seção abaixo) em `res_N128_W4` e `res_N128_W16`.
 
 ## Debugger
 
