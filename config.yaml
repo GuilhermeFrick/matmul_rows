@@ -1,6 +1,6 @@
 ctg:
   master:
     successors:
-      - "worker01"
-      - "worker02"
-      - "worker03"
+      - "worker0"
+      - "worker1"
+      - "worker2"

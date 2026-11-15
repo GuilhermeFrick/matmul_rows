@@ -1,6 +1,6 @@
 # matmul_rows — Multiplicação de matrizes na Memphis-V
 
-Todos os comandos rodam na paxos.
+Todos os comandos rodam na paxos, exceto onde indicado "no seu computador". Passo a passo detalhado: [ROTEIRO.md](ROTEIRO.md).
 
 ## Instalar (uma vez)
 
@@ -15,14 +15,14 @@ cp ~/Memphis-V/applications/matmul_rows/sandbox/*.yaml /sim/$USER/matmul_rows/
 
 ```sh
 cd ~/Memphis-V/applications/matmul_rows
-git checkout . && git pull   # descarta arquivos do gerador
+git checkout . && git clean -f && git pull
 ```
 
 ## Gerar uma configuração
 
 ```sh
 cd ~/Memphis-V/applications/matmul_rows/generator
-python3 generator.py --tasks 4 --vector-size 6 --order-by asc
+python3 generator.py --workers 3 --size 6 [--seed 1] [--debug]
 ```
 
 ## Simular
@@ -41,12 +41,76 @@ cd /sim/$USER/matmul_rows
 grep -h '\$\$\$_' testcase/scenario/log/*.txt
 ```
 
+Esperado: `RESULT OK ... erros=0` no master. Em caso de falha a tarefa imprime `ERRO <código> (<nome>): ...` e retorna o código:
+
+| Código | Nome | Causa |
+|---|---|---|
+| 0 | `MATMUL_OK` | sucesso |
+| 1 | `MATMUL_ERR_ALLOC` | `malloc` devolveu `NULL` |
+| 2 | `MATMUL_ERR_SEND` | `memphis_send` falhou |
+| 3 | `MATMUL_ERR_RECV` | `memphis_receive` falhou ou tamanho errado |
+| 4 | `MATMUL_ERR_RESULT` | C diferente do golden |
+
+## Roteiro completo dos experimentos
+
+Malha 5x5, 1 tarefa por PE, N ∈ {32, 64, 128}, W ∈ {1, 2, 4, 8, 16}. Leva cerca de 2 h.
+
+1. Atualizar o código (seção acima).
+
+2. Preparar a pasta e rodar a bateria em segundo plano, no mesmo bloco (continua se o SSH cair; o `pwd` deve mostrar `/sim/<usuário>/matmul_exp`):
+
+```sh
+mkdir -p /sim/$USER/matmul_exp && cd /sim/$USER/matmul_exp
+cp ~/Memphis-V/applications/matmul_rows/experiments/testcase.yaml ~/Memphis-V/applications/matmul_rows/experiments/applications.yaml .
+pwd
+nohup bash -c 'APP=~/Memphis-V/applications/matmul_rows
+for N in 32 64 128; do for W in 1 2 4 8 16; do
+  python3 $APP/generator/generator.py --workers $W --size $N --page-kb 1024 &&
+  cp $APP/experiments/scenario_w$W.yaml scenario.yaml &&
+  $APP/scripts/run.sh &&
+  rm -rf res_N${N}_W$W && cp -r testcase/scenario res_N${N}_W$W
+done; done' > bateria.log 2>&1 &
+```
+
+3. Acompanhar (Ctrl+C só fecha a visualização):
+
+```sh
+tail -f bateria.log
+ls -d res_N*
+```
+
+4. Conferir os 15 resultados:
+
+```sh
+grep -h 'RESULT\|ERRO' res_N*/log/*.txt
+```
+
+5. Tabelas (CSV/Markdown) e gráficos de tempo, speedup e eficiência em `resultados/`:
+
+```sh
+python3 ~/Memphis-V/applications/matmul_rows/scripts/resultados.py
+```
+
+6. Debugger (seção abaixo) em `res_N128_W4` e `res_N128_W16`.
+
 ## Debugger
+
+Na paxos (SSH com `-X`):
 
 ```sh
 source ~/Memphis-V/applications/matmul_rows/scripts/memphis_env.sh
-mint debug testcase/scenario
+mint debug res_N128_W16
 ```
+
+No seu computador, copiando os resultados e o debugger:
+
+```sh
+scp -r 'paxos:/sim/USUARIO/matmul_exp/res_N*' 'paxos:/sim/USUARIO/matmul_exp/resultados' .
+scp 'paxos:CAMINHO/Memphis_Debugger.jar' .
+java -jar Memphis_Debugger.jar res_N128_W16/debug/platform.cfg
+```
+
+`CAMINHO`: saída de `echo $MEMPHIS_DEBUGGER_PATH` na paxos após o `source`.
 
 - Escalonamento: clicar no PE → Scheduling → Open Scheduling Graph
 - Tráfego: Tools → Communication Overview
